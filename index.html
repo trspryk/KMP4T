@@ -1,0 +1,1120 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Knowledge Catalog</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+
+  <!-- ============================================================
+    KONFIGURASI — EDIT BAGIAN INI
+    1. Ganti API_URL dengan URL dari Google Apps Script Web App Anda
+       Cara deploy: appsscript.gs > Deploy > New Deployment > Web App
+    2. Ganti SPREADSHEET_ID dengan ID dari Google Sheet Anda
+       (ada di URL sheet: .../spreadsheets/d/[ID]/edit)
+  ============================================================ -->
+  <script>
+    const CONFIG = {
+      // Ganti dengan URL Google Apps Script Web App setelah di-deploy
+      API_URL: "https://script.google.com/macros/s/AKfycbzXEthpjE2OCeBjTv5rUSUpg-PFbSFGGyR3iEugXGAduBt5j6Ef0fFWa197C1x8f6Yy/exec",
+
+      // ID Google Sheet (dari URL spreadsheet)
+      SPREADSHEET_ID: "1VRLaK2ncNWwzoZBvCklmR0IPxyo921GGmRxFcFCSnR4",
+
+      // Judul & nama organisasi di header
+      APP_TITLE: "Knowledge Catalog",
+      ORG_NAME:  "Direktorat Anda",
+
+      // Mode demo: true = pakai data dummy, false = fetch dari API
+      // Set ke FALSE setelah API sudah di-deploy
+      DEMO_MODE: FALSE,
+    };
+  </script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --green-50:  #E1F5EE;
+      --green-100: #9FE1CB;
+      --green-500: #1D9E75;
+      --green-700: #0F6E56;
+      --green-900: #04342C;
+      --blue-50:  #E6F1FB;
+      --blue-500: #185FA5;
+      --purple-50: #EEEDFE;
+      --purple-500: #534AB7;
+      --amber-50: #FAEEDA;
+      --amber-500: #854F0B;
+      --pink-50:  #FBEAF0;
+      --pink-500: #993556;
+      --gray-50:  #F1EFE8;
+      --gray-500: #5F5E5A;
+
+      --bg:       #F6F6F4;
+      --surface:  #FFFFFF;
+      --border:   rgba(0,0,0,0.09);
+      --border-md: rgba(0,0,0,0.14);
+      --text-1:   #1A1A18;
+      --text-2:   #5A5A57;
+      --text-3:   #9A9A96;
+      --accent:   #1D9E75;
+      --accent-bg: #E1F5EE;
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+      --shadow-card: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg:      #151513;
+        --surface: #1E1E1C;
+        --border:  rgba(255,255,255,0.08);
+        --border-md: rgba(255,255,255,0.13);
+        --text-1:  #F0F0ED;
+        --text-2:  #A0A09C;
+        --text-3:  #606060;
+        --accent:  #2DC68F;
+        --accent-bg: #0A3328;
+        --green-50: #0A2E22;
+        --green-100: #0F5040;
+        --blue-50: #0A1E35;
+        --purple-50: #1A1845;
+        --amber-50: #2A1A05;
+        --pink-50: #2A1020;
+        --gray-50: #252523;
+        --shadow-card: 0 1px 3px rgba(0,0,0,0.3);
+      }
+    }
+
+    html { font-size: 16px; }
+    body {
+      font-family: 'DM Sans', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text-1);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+
+    /* ── TOPBAR ── */
+    .topbar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      height: 54px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      text-decoration: none;
+    }
+    .logo-mark {
+      width: 28px; height: 28px;
+      background: var(--accent);
+      border-radius: 7px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .logo-mark i { font-size: 16px; color: #fff; }
+    .logo-text {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-1);
+      letter-spacing: -0.01em;
+    }
+    .logo-sub {
+      font-size: 12px;
+      color: var(--text-3);
+      font-weight: 400;
+    }
+    .topbar-sep {
+      width: 1px; height: 20px;
+      background: var(--border-md);
+      margin: 0 4px;
+    }
+    .topbar-right {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .total-badge {
+      font-size: 12px;
+      color: var(--text-2);
+      background: var(--bg);
+      border: 1px solid var(--border-md);
+      padding: 3px 10px;
+      border-radius: 999px;
+    }
+    .sync-btn {
+      display: flex; align-items: center; gap: 5px;
+      font-size: 12px;
+      color: var(--text-2);
+      background: none;
+      border: 1px solid var(--border-md);
+      padding: 5px 12px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: background 0.12s;
+    }
+    .sync-btn:hover { background: var(--bg); color: var(--text-1); }
+    .sync-btn i { font-size: 14px; }
+    .spinning { animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── SEARCH & FILTER BAR ── */
+    .filterbar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 24px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .search-wrap {
+      position: relative;
+      flex: 1;
+      min-width: 220px;
+      max-width: 440px;
+    }
+    .search-wrap i {
+      position: absolute;
+      left: 10px; top: 50%;
+      transform: translateY(-50%);
+      font-size: 16px;
+      color: var(--text-3);
+      pointer-events: none;
+    }
+    .search-wrap input {
+      width: 100%;
+      padding: 0 12px 0 34px;
+      height: 36px;
+      font-family: inherit;
+      font-size: 13px;
+      border: 1px solid var(--border-md);
+      border-radius: var(--radius-sm);
+      background: var(--bg);
+      color: var(--text-1);
+      outline: none;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .search-wrap input::placeholder { color: var(--text-3); }
+    .search-wrap input:focus {
+      border-color: var(--accent);
+      background: var(--surface);
+    }
+    .filter-group {
+      display: flex; align-items: center; gap: 6px;
+    }
+    .filter-group label {
+      font-size: 12px;
+      color: var(--text-3);
+      white-space: nowrap;
+    }
+    select {
+      font-family: inherit;
+      font-size: 13px;
+      height: 36px;
+      padding: 0 10px;
+      border: 1px solid var(--border-md);
+      border-radius: var(--radius-sm);
+      background: var(--bg);
+      color: var(--text-1);
+      outline: none;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+    select:focus { border-color: var(--accent); }
+    .btn-clear {
+      display: flex; align-items: center; gap: 4px;
+      font-family: inherit;
+      font-size: 12px;
+      color: var(--text-2);
+      background: none;
+      border: 1px solid var(--border-md);
+      padding: 0 10px;
+      height: 36px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: background 0.12s;
+    }
+    .btn-clear:hover { background: var(--bg); }
+    .btn-clear i { font-size: 14px; }
+
+    /* ── MAIN CONTENT ── */
+    .main { padding: 20px 24px 48px; max-width: 1200px; margin: 0 auto; }
+
+    .result-bar {
+      display: flex; align-items: center;
+      margin-bottom: 14px;
+      gap: 8px;
+    }
+    .result-count {
+      font-size: 12px;
+      color: var(--text-3);
+    }
+    .sort-toggle {
+      margin-left: auto;
+      display: flex; align-items: center; gap: 4px;
+      font-family: inherit;
+      font-size: 12px;
+      color: var(--text-2);
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 4px 6px;
+      border-radius: var(--radius-sm);
+      transition: background 0.1s;
+    }
+    .sort-toggle:hover { background: var(--border); color: var(--text-1); }
+    .sort-toggle i { font-size: 15px; }
+
+    /* ── SKELETON LOADER ── */
+    .skeleton-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+      gap: 14px;
+    }
+    .skeleton-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+      height: 176px;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .skel {
+      background: linear-gradient(90deg, var(--border) 25%, var(--bg) 50%, var(--border) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s infinite;
+      border-radius: 4px;
+    }
+    @keyframes shimmer { to { background-position: -200% 0; } }
+
+    /* ── CARD GRID ── */
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+      gap: 14px;
+    }
+
+    .k-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+      cursor: pointer;
+      display: flex; flex-direction: column; gap: 10px;
+      box-shadow: var(--shadow-card);
+      transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+      text-decoration: none;
+    }
+    .k-card:hover {
+      border-color: var(--accent);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 16px rgba(29,158,117,0.12), var(--shadow-card);
+    }
+
+    .card-top {
+      display: flex; align-items: flex-start; gap: 10px;
+    }
+    .card-icon {
+      width: 36px; height: 36px;
+      border-radius: var(--radius-sm);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+    .card-title {
+      font-size: 13.5px;
+      font-weight: 600;
+      color: var(--text-1);
+      line-height: 1.45;
+      letter-spacing: -0.01em;
+    }
+    .card-summary {
+      font-size: 12.5px;
+      color: var(--text-2);
+      line-height: 1.65;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      flex: 1;
+    }
+    .card-footer {
+      display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+      margin-top: auto;
+      padding-top: 8px;
+      border-top: 1px solid var(--border);
+    }
+    .chip {
+      font-size: 11px;
+      padding: 3px 9px;
+      border-radius: 999px;
+      border: 1px solid var(--border-md);
+      color: var(--text-2);
+      background: var(--bg);
+      white-space: nowrap;
+      font-weight: 500;
+    }
+    .chip-subdit {
+      font-size: 11px;
+      padding: 3px 9px;
+      border-radius: 999px;
+      white-space: nowrap;
+      font-weight: 500;
+    }
+    .card-date {
+      margin-left: auto;
+      font-size: 11px;
+      color: var(--text-3);
+      white-space: nowrap;
+    }
+
+    /* ── EMPTY STATE ── */
+    .empty-state {
+      text-align: center;
+      padding: 60px 24px;
+      color: var(--text-2);
+    }
+    .empty-icon {
+      width: 56px; height: 56px;
+      background: var(--bg);
+      border: 1px solid var(--border-md);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 14px;
+      font-size: 24px;
+      color: var(--text-3);
+    }
+    .empty-state h3 { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+    .empty-state p { font-size: 13px; color: var(--text-3); }
+
+    /* ── ERROR BANNER ── */
+    .error-banner {
+      display: flex; align-items: flex-start; gap: 12px;
+      background: #FEF2F2;
+      border: 1px solid #FECACA;
+      border-radius: var(--radius-md);
+      padding: 14px 16px;
+      margin-bottom: 16px;
+      font-size: 13px;
+      color: #991B1B;
+    }
+    .error-banner i { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+    .error-banner a { color: #1D9E75; text-decoration: underline; cursor: pointer; }
+
+    /* ── DEMO BANNER ── */
+    .demo-banner {
+      display: flex; align-items: center; gap: 10px;
+      background: var(--amber-50);
+      border-bottom: 1px solid rgba(186,117,23,0.2);
+      padding: 8px 24px;
+      font-size: 12px;
+      color: var(--amber-500);
+    }
+    .demo-banner i { font-size: 15px; flex-shrink: 0; }
+    .demo-banner strong { font-weight: 600; }
+
+    /* ── DETAIL PANEL ── */
+    .overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 200;
+      opacity: 0;
+      transition: opacity 0.2s;
+      backdrop-filter: blur(2px);
+    }
+    .overlay.open { opacity: 1; }
+
+    .detail-panel {
+      position: fixed;
+      top: 0; right: 0; bottom: 0;
+      width: 100%; max-width: 540px;
+      background: var(--surface);
+      border-left: 1px solid var(--border);
+      z-index: 201;
+      overflow-y: auto;
+      transform: translateX(100%);
+      transition: transform 0.25s cubic-bezier(0.32,0.72,0,1);
+      display: flex; flex-direction: column;
+    }
+    .detail-panel.open { transform: translateX(0); }
+
+    .detail-header {
+      display: flex; align-items: center; gap: 10px;
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      position: sticky; top: 0;
+      background: var(--surface);
+      z-index: 10;
+    }
+    .close-btn {
+      display: flex; align-items: center; justify-content: center;
+      width: 32px; height: 32px;
+      border: 1px solid var(--border-md);
+      border-radius: var(--radius-sm);
+      background: none;
+      color: var(--text-2);
+      font-size: 17px;
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+    .close-btn:hover { background: var(--bg); color: var(--text-1); }
+    .detail-header-title {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-2);
+    }
+    .detail-header-right {
+      margin-left: auto;
+      display: flex; gap: 6px;
+    }
+
+    .detail-body { padding: 20px; flex: 1; }
+
+    .detail-icon {
+      width: 44px; height: 44px;
+      border-radius: var(--radius-md);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px;
+      margin-bottom: 12px;
+    }
+    .detail-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text-1);
+      line-height: 1.4;
+      letter-spacing: -0.02em;
+      margin-bottom: 14px;
+    }
+    .meta-pills {
+      display: flex; flex-wrap: wrap; gap: 6px;
+      margin-bottom: 20px;
+    }
+    .meta-pill {
+      display: flex; align-items: center; gap: 5px;
+      font-size: 12px;
+      color: var(--text-2);
+      background: var(--bg);
+      border: 1px solid var(--border-md);
+      padding: 4px 10px;
+      border-radius: 999px;
+    }
+    .meta-pill i { font-size: 14px; }
+
+    .divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 18px 0;
+    }
+
+    .section-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--text-3);
+      margin-bottom: 8px;
+    }
+    .section-text {
+      font-size: 13.5px;
+      color: var(--text-2);
+      line-height: 1.75;
+    }
+
+    .topic-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .topic-chip {
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border-md);
+      color: var(--text-2);
+      background: var(--bg);
+    }
+
+    .insight-list { display: flex; flex-direction: column; gap: 8px; }
+    .insight-item {
+      display: flex; gap: 10px; align-items: flex-start;
+      padding: 10px 12px;
+      background: var(--accent-bg);
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      color: var(--text-2);
+      line-height: 1.6;
+    }
+    .insight-item i { font-size: 16px; color: var(--accent); flex-shrink: 0; margin-top: 1px; }
+
+    .kw-list { display: flex; flex-wrap: wrap; gap: 6px; }
+    .kw-pill {
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: var(--green-50);
+      color: var(--green-700);
+      border: 1px solid var(--green-100);
+      font-weight: 500;
+    }
+
+    .file-list { display: flex; flex-direction: column; gap: 8px; }
+    .file-link {
+      display: flex; align-items: center; gap: 10px;
+      padding: 11px 14px;
+      border: 1px solid var(--border-md);
+      border-radius: var(--radius-md);
+      background: var(--surface);
+      color: var(--text-1);
+      font-size: 13px;
+      text-decoration: none;
+      transition: background 0.12s, border-color 0.12s;
+    }
+    .file-link:hover { background: var(--bg); border-color: var(--accent); }
+    .file-link i:first-child { font-size: 20px; color: var(--blue-500); flex-shrink: 0; }
+    .file-link-info { flex: 1; }
+    .file-link-name { font-weight: 500; }
+    .file-link-type { font-size: 11px; color: var(--text-3); }
+    .file-link i:last-child { font-size: 14px; color: var(--text-3); }
+    .file-no-link {
+      font-size: 12px;
+      color: var(--text-3);
+      font-style: italic;
+      padding: 8px 0;
+    }
+
+    /* ── DETAIL SKELETON ── */
+    .detail-skel { display: flex; flex-direction: column; gap: 12px; padding: 20px; }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 600px) {
+      .topbar { padding: 0 14px; gap: 8px; }
+      .logo-sub { display: none; }
+      .filterbar { padding: 10px 14px; }
+      .main { padding: 14px 14px 48px; }
+      .detail-panel { max-width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <a class="logo" href="#">
+      <div class="logo-mark"><i class="ti ti-brain"></i></div>
+      <div>
+        <div class="logo-text" id="appTitle">Knowledge Catalog</div>
+        <div class="logo-sub" id="orgName"></div>
+      </div>
+    </a>
+    <div class="topbar-sep"></div>
+    <span class="total-badge" id="totalBadge">Memuat...</span>
+    <div class="topbar-right">
+      <button class="sync-btn" id="syncBtn" onclick="refreshData()" title="Sinkronisasi ulang dari Google Sheets">
+        <i class="ti ti-refresh" id="syncIcon"></i>
+        <span>Sinkronisasi</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- DEMO BANNER -->
+  <div class="demo-banner" id="demoBanner" style="display:none">
+    <i class="ti ti-info-circle"></i>
+    <span><strong>Mode Demo</strong> — Data yang ditampilkan adalah data dummy. Set <code>DEMO_MODE: false</code> dan isi <code>API_URL</code> di CONFIG setelah Apps Script di-deploy.</span>
+  </div>
+
+  <!-- SEARCH & FILTER BAR -->
+  <div class="filterbar">
+    <div class="search-wrap">
+      <i class="ti ti-search"></i>
+      <input type="text" id="searchInput" placeholder="Cari judul, topik, kata kunci..." oninput="renderCards()" />
+    </div>
+    <div class="filter-group">
+      <label for="filterTahun">Tahun</label>
+      <select id="filterTahun" onchange="renderCards()">
+        <option value="">Semua</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label for="filterSubdit">Subdit</label>
+      <select id="filterSubdit" onchange="renderCards()">
+        <option value="">Semua</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label for="filterJenis">Jenis</label>
+      <select id="filterJenis" onchange="renderCards()">
+        <option value="">Semua</option>
+        <option>Rapat</option>
+        <option>FGD</option>
+        <option>Seminar</option>
+        <option>Workshop</option>
+        <option>Webinar</option>
+      </select>
+    </div>
+    <button class="btn-clear" onclick="clearFilters()">
+      <i class="ti ti-x"></i> Reset
+    </button>
+  </div>
+
+  <!-- MAIN -->
+  <main class="main">
+    <div class="result-bar">
+      <span class="result-count" id="resultCount"></span>
+      <button class="sort-toggle" id="sortBtn" onclick="toggleSort()">
+        <i class="ti ti-sort-descending" id="sortIcon"></i>
+        <span id="sortLabel">Terbaru</span>
+      </button>
+    </div>
+
+    <!-- Error banner (hidden by default) -->
+    <div class="error-banner" id="errorBanner" style="display:none">
+      <i class="ti ti-alert-circle"></i>
+      <div id="errorMsg"></div>
+    </div>
+
+    <!-- Skeleton / Card Grid -->
+    <div id="skeletonGrid" class="skeleton-grid"></div>
+    <div id="cardGrid" class="card-grid" style="display:none"></div>
+    <div id="emptyState" class="empty-state" style="display:none">
+      <div class="empty-icon"><i class="ti ti-search-off"></i></div>
+      <h3>Tidak ada hasil</h3>
+      <p>Coba ubah kata kunci atau filter pencarian.</p>
+    </div>
+  </main>
+
+  <!-- OVERLAY + DETAIL PANEL -->
+  <div class="overlay" id="overlay" onclick="closeDetail()"></div>
+  <aside class="detail-panel" id="detailPanel" role="dialog" aria-modal="true" aria-label="Detail Knowledge"></aside>
+
+  <script>
+  // ─────────────────────────────────────────────────────────────
+  // STATE
+  // ─────────────────────────────────────────────────────────────
+  let allData = [];
+  let sortDesc = true;
+
+  // ─────────────────────────────────────────────────────────────
+  // DEMO DATA (digunakan saat CONFIG.DEMO_MODE = true)
+  // ─────────────────────────────────────────────────────────────
+  const DEMO_DATA = [
+    { id:1, judul:'FGD Strategi Pengembangan Kompetensi SDM 2025', jenis:'FGD', tanggal:'2025-03-14', tahun:'2025', subdit:'Subdit Pengembangan SDM', ringkasan:'FGD membahas kebutuhan kompetensi SDM dalam menghadapi transformasi digital. Peserta sepakat bahwa reskilling dan upskilling menjadi prioritas utama. Peta kompetensi akan direvisi pada Q2 2025.', topik:['transformasi digital','reskilling','peta kompetensi','upskilling'], insight:['70% pegawai membutuhkan pelatihan kompetensi digital dalam 2 tahun ke depan','Program mentoring lintas generasi dinilai efektif meningkatkan transfer pengetahuan','Anggaran pelatihan diusulkan naik 25% untuk mengakomodasi kebutuhan reskilling'], keywords:['SDM','kompetensi','digital','pelatihan','reskilling'], link_notulensi:'', link_lampiran:'', nama_notulensi:'Notulensi FGD SDM 2025.pdf', nama_lampiran:'Materi Presentasi.pptx' },
+    { id:2, judul:'Seminar Nasional Inovasi Layanan Publik Berbasis Data', jenis:'Seminar', tanggal:'2025-02-20', tahun:'2025', subdit:'Subdit Inovasi & Teknologi', ringkasan:'Seminar menghadirkan narasumber dari BPS dan Kominfo untuk membahas pemanfaatan big data dalam layanan publik. Dipaparkan best practice dari 3 provinsi yang berhasil meningkatkan efisiensi layanan.', topik:['big data','layanan publik','inovasi','smart government'], insight:['Integrasi data lintas K/L masih menjadi hambatan utama implementasi smart government','Provinsi Jawa Barat berhasil memangkas waktu layanan 40% melalui data-driven decision','Standar interoperabilitas data perlu segera ditetapkan sebagai regulasi nasional'], keywords:['big data','layanan publik','inovasi','BPS','Kominfo'], link_notulensi:'', link_lampiran:'', nama_notulensi:'Notulensi Seminar.pdf', nama_lampiran:'Bahan Narasumber.zip' },
+    { id:3, judul:'Rapat Koordinasi Penyusunan Rencana Strategis 2025–2029', jenis:'Rapat', tanggal:'2025-01-15', tahun:'2025', subdit:'Subdit Perencanaan', ringkasan:'Rapat koordinasi membahas draft Renstra 2025–2029 dengan fokus pada penyelarasan target kinerja lintas unit. Disepakati 5 prioritas strategis dan mekanisme monitoring triwulanan.', topik:['renstra','perencanaan strategis','target kinerja','monitoring'], insight:['Target kinerja perlu diselaraskan dengan RPJMN 2025–2029 agar tidak tumpang tindih','Dashboard monitoring real-time diusulkan untuk menggantikan pelaporan manual','Indikator outcome lebih diprioritaskan daripada indikator output semata'], keywords:['renstra','perencanaan','kinerja','RPJMN','monitoring'], link_notulensi:'', link_lampiran:'', nama_notulensi:'Notulensi Rakor.pdf', nama_lampiran:'' },
+    { id:4, judul:'Workshop Manajemen Risiko dan Pengendalian Internal', jenis:'Workshop', tanggal:'2024-11-08', tahun:'2024', subdit:'Subdit Pengawasan Internal', ringkasan:'Workshop membekali peserta dengan kerangka kerja COSO ERM dan praktik pengendalian internal berbasis risiko. Simulasi penilaian risiko dilakukan menggunakan studi kasus nyata dari unit kerja.', topik:['manajemen risiko','COSO ERM','pengendalian internal','audit'], insight:['Sebagian besar unit kerja belum memiliki risk register yang terstruktur dan diperbarui berkala','Penerapan three lines of defense perlu sosialisasi lebih intensif ke tingkat operasional','Tools digital untuk penilaian risiko dapat mempercepat proses audit internal'], keywords:['risiko','COSO','audit','pengendalian','internal'], link_notulensi:'', link_lampiran:'', nama_notulensi:'Notulensi Workshop MR.pdf', nama_lampiran:'Template Risk Register.xlsx' },
+    { id:5, judul:'Webinar Transformasi Digital: Implementasi SPBE', jenis:'Webinar', tanggal:'2024-09-25', tahun:'2024', subdit:'Subdit Inovasi & Teknologi', ringkasan:'Webinar membahas progres implementasi SPBE dan tantangan yang dihadapi instansi. Dipaparkan roadmap nasional dan studi kasus dari instansi yang telah mencapai indeks SPBE tinggi.', topik:['SPBE','e-government','transformasi digital','roadmap'], insight:['Indeks SPBE rata-rata instansi masih berada di level 2.3 dari maksimum 5','Integrasi layanan antar sistem menjadi bottleneck paling umum yang ditemui','Komitmen pimpinan menjadi faktor pembeda utama antara instansi dengan indeks tinggi dan rendah'], keywords:['SPBE','digital','e-government','indeks','roadmap'], link_notulensi:'', link_lampiran:'', nama_notulensi:'Notulensi Webinar SPBE.pdf', nama_lampiran:'Slide Roadmap SPBE.pdf' },
+    { id:6, judul:'FGD Evaluasi Pelaksanaan Program Prioritas Semester I 2024', jenis:'FGD', tanggal:'2024-07-10', tahun:'2024', subdit:'Subdit Perencanaan', ringkasan:'FGD mengevaluasi capaian 12 program prioritas semester pertama 2024. Dari total program, 8 program on track, 3 program perlu percepatan, dan 1 program berisiko tidak tercapai.', topik:['evaluasi program','capaian kinerja','semester I','percepatan'], insight:['Keterlambatan pengadaan menjadi penyebab utama 3 program yang tertinggal jadwal','Koordinasi lintas unit perlu diperkuat terutama untuk program yang melibatkan lebih dari 2 subdit','Early warning system berbasis dashboard dapat membantu deteksi dini keterlambatan program'], keywords:['evaluasi','program prioritas','kinerja','capaian','2024'], link_notulensi:'', link_lampiran:'', nama_notulensi:'Notulensi FGD Evaluasi.pdf', nama_lampiran:'Matriks Capaian.xlsx' },
+    { id:7, judul:'Rapat Sinkronisasi Data Kepegawaian Triwulan III 2023', jenis:'Rapat', tanggal:'2023-08-22', tahun:'2023', subdit:'Subdit Pengembangan SDM', ringkasan:'Rapat membahas sinkronisasi data kepegawaian antara SIMPEG pusat dan unit kerja. Ditemukan sejumlah inkonsistensi data yang perlu segera direkonsiliasi sebelum batas akhir pelaporan.', topik:['SIMPEG','data kepegawaian','sinkronisasi','rekonsiliasi'], insight:['Sebanyak 12% data pegawai memiliki ketidaksesuaian antara SIMPEG dan data unit kerja','Pembaruan data secara berkala setiap bulan diusulkan sebagai standar prosedur baru','Perlu penunjukan PIC data kepegawaian di masing-masing unit kerja'], keywords:['SIMPEG','kepegawaian','data','sinkronisasi','SDM'], link_notulensi:'', link_lampiran:'', nama_notulensi:'Notulensi Rakor SIMPEG.pdf', nama_lampiran:'' },
+  ];
+
+  // ─────────────────────────────────────────────────────────────
+  // ICON & COLOR CONFIG
+  // ─────────────────────────────────────────────────────────────
+  const JENIS_CONFIG = {
+    'Rapat':    { icon: 'ti-calendar-event', bg: 'var(--blue-50)',   color: 'var(--blue-500)' },
+    'FGD':      { icon: 'ti-users',          bg: 'var(--purple-50)', color: 'var(--purple-500)' },
+    'Seminar':  { icon: 'ti-presentation',   bg: 'var(--green-50)',  color: 'var(--green-700)' },
+    'Workshop': { icon: 'ti-tools',          bg: 'var(--amber-50)',  color: 'var(--amber-500)' },
+    'Webinar':  { icon: 'ti-device-desktop', bg: 'var(--pink-50)',   color: 'var(--pink-500)' },
+  };
+  const DEFAULT_ICON = { icon: 'ti-file-text', bg: 'var(--gray-50)', color: 'var(--gray-500)' };
+
+  const SUBDIT_COLORS = [
+    { bg: 'var(--green-50)',  color: 'var(--green-700)' },
+    { bg: 'var(--blue-50)',   color: 'var(--blue-500)' },
+    { bg: 'var(--purple-50)', color: 'var(--purple-500)' },
+    { bg: 'var(--amber-50)',  color: 'var(--amber-500)' },
+    { bg: 'var(--pink-50)',   color: 'var(--pink-500)' },
+  ];
+  const subditColorMap = {};
+  let subditColorIdx = 0;
+  function getSubditColor(subdit) {
+    if (!subditColorMap[subdit]) {
+      subditColorMap[subdit] = SUBDIT_COLORS[subditColorIdx % SUBDIT_COLORS.length];
+      subditColorIdx++;
+    }
+    return subditColorMap[subdit];
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // DATA FETCHING
+  // ─────────────────────────────────────────────────────────────
+  async function fetchData() {
+    if (CONFIG.DEMO_MODE) {
+      document.getElementById('demoBanner').style.display = 'flex';
+      return DEMO_DATA;
+    }
+
+    const url = CONFIG.API_URL + '?action=list&t=' + Date.now();
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('HTTP ' + res.status + ' — Gagal menghubungi API.');
+    const json = await res.json();
+    if (json.error) throw new Error(json.error);
+    return json;
+  }
+
+  async function fetchDetail(id) {
+    if (CONFIG.DEMO_MODE) {
+      return DEMO_DATA.find(d => d.id === id) || null;
+    }
+    const url = CONFIG.API_URL + '?action=detail&id=' + id;
+    const res = await fetch(url);
+    const json = await res.json();
+    if (json.error) throw new Error(json.error);
+    return json;
+  }
+
+  async function loadData() {
+    showSkeleton(6);
+    hideError();
+
+    try {
+      allData = await fetchData();
+      populateFilters();
+      renderCards();
+      document.getElementById('totalBadge').textContent = allData.length + ' knowledge';
+    } catch (err) {
+      showError(err.message);
+      allData = [];
+      renderCards();
+    } finally {
+      hideSkeleton();
+    }
+  }
+
+  async function refreshData() {
+    const icon = document.getElementById('syncIcon');
+    icon.classList.add('spinning');
+    try {
+      await loadData();
+    } finally {
+      icon.classList.remove('spinning');
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // FILTER POPULATION
+  // ─────────────────────────────────────────────────────────────
+  function populateFilters() {
+    const tahunSet = [...new Set(allData.map(d => d.tahun).filter(Boolean))].sort().reverse();
+    const subditSet = [...new Set(allData.map(d => d.subdit).filter(Boolean))].sort();
+
+    const selT = document.getElementById('filterTahun');
+    const selS = document.getElementById('filterSubdit');
+
+    // Reset & repopulate
+    selT.innerHTML = '<option value="">Semua</option>';
+    selS.innerHTML = '<option value="">Semua</option>';
+
+    tahunSet.forEach(t => {
+      const o = document.createElement('option'); o.value = t; o.textContent = t; selT.appendChild(o);
+    });
+    subditSet.forEach(s => {
+      const o = document.createElement('option'); o.value = s; o.textContent = s; selS.appendChild(o);
+    });
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // FILTERING & SORTING
+  // ─────────────────────────────────────────────────────────────
+  function getFiltered() {
+    const q     = document.getElementById('searchInput').value.toLowerCase().trim();
+    const tahun = document.getElementById('filterTahun').value;
+    const subdit= document.getElementById('filterSubdit').value;
+    const jenis = document.getElementById('filterJenis').value;
+
+    return allData
+      .filter(d => {
+        if (q) {
+          const haystack = [d.judul, d.ringkasan, ...(d.topik||[]), ...(d.keywords||[])].join(' ').toLowerCase();
+          if (!haystack.includes(q)) return false;
+        }
+        if (tahun  && d.tahun  !== tahun)  return false;
+        if (subdit && d.subdit !== subdit) return false;
+        if (jenis  && d.jenis  !== jenis)  return false;
+        return true;
+      })
+      .sort((a, b) => sortDesc
+        ? (b.tanggal || '').localeCompare(a.tanggal || '')
+        : (a.tanggal || '').localeCompare(b.tanggal || '')
+      );
+  }
+
+  function toggleSort() {
+    sortDesc = !sortDesc;
+    document.getElementById('sortLabel').textContent = sortDesc ? 'Terbaru' : 'Terlama';
+    document.getElementById('sortIcon').className = sortDesc ? 'ti ti-sort-descending' : 'ti ti-sort-ascending';
+    renderCards();
+  }
+
+  function clearFilters() {
+    document.getElementById('searchInput').value = '';
+    document.getElementById('filterTahun').value = '';
+    document.getElementById('filterSubdit').value = '';
+    document.getElementById('filterJenis').value = '';
+    renderCards();
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // RENDER CARDS
+  // ─────────────────────────────────────────────────────────────
+  function renderCards() {
+    const filtered = getFiltered();
+    const grid  = document.getElementById('cardGrid');
+    const empty = document.getElementById('emptyState');
+    const count = document.getElementById('resultCount');
+
+    count.textContent = filtered.length === allData.length
+      ? allData.length + ' knowledge'
+      : filtered.length + ' dari ' + allData.length + ' knowledge';
+
+    if (!filtered.length) {
+      grid.style.display = 'none';
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+    grid.style.display = 'grid';
+
+    grid.innerHTML = filtered.map(d => {
+      const ic = JENIS_CONFIG[d.jenis] || DEFAULT_ICON;
+      const sc = getSubditColor(d.subdit);
+      return `<article class="k-card" onclick="openDetail(${d.id})" tabindex="0" role="button" aria-label="${esc(d.judul)}">
+        <div class="card-top">
+          <div class="card-icon" style="background:${ic.bg}">
+            <i class="ti ${ic.icon}" style="color:${ic.color}" aria-hidden="true"></i>
+          </div>
+          <div class="card-title">${esc(d.judul)}</div>
+        </div>
+        <div class="card-summary">${esc(d.ringkasan)}</div>
+        <div class="card-footer">
+          <span class="chip-subdit" style="background:${sc.bg};color:${sc.color}">${esc(d.subdit)}</span>
+          <span class="chip">${esc(d.jenis)}</span>
+          <span class="card-date">${formatDate(d.tanggal)}</span>
+        </div>
+      </article>`;
+    }).join('');
+
+    // Keyboard nav
+    grid.querySelectorAll('.k-card').forEach(card => {
+      card.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') card.click(); });
+    });
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // DETAIL PANEL
+  // ─────────────────────────────────────────────────────────────
+  async function openDetail(id) {
+    const overlay = document.getElementById('overlay');
+    const panel   = document.getElementById('detailPanel');
+
+    // Show loading skeleton
+    panel.innerHTML = buildDetailSkeleton();
+    overlay.classList.add('open');
+    panel.classList.add('open');
+    document.body.style.overflow = 'hidden';
+
+    try {
+      const d = await fetchDetail(id);
+      if (!d) throw new Error('Data tidak ditemukan.');
+      panel.innerHTML = buildDetailHTML(d);
+    } catch (err) {
+      panel.innerHTML = `<div style="padding:24px;font-size:13px;color:var(--text-2)">
+        <i class="ti ti-alert-circle" style="font-size:24px;display:block;margin-bottom:8px;color:#E24B4A"></i>
+        Gagal memuat detail: ${esc(err.message)}
+      </div>`;
+    }
+  }
+
+  function buildDetailHTML(d) {
+    const ic = JENIS_CONFIG[d.jenis] || DEFAULT_ICON;
+    const insights = (d.insight || []).map(i =>
+      `<li class="insight-item"><i class="ti ti-bulb" aria-hidden="true"></i><span>${esc(i)}</span></li>`
+    ).join('');
+    const topics = (d.topik || []).map(t => `<span class="topic-chip">${esc(t)}</span>`).join('');
+    const kws    = (d.keywords || []).map(k => `<span class="kw-pill">${esc(k)}</span>`).join('');
+
+    let fileSection = '';
+    if (d.link_notulensi) {
+      fileSection += `<a class="file-link" href="${esc(d.link_notulensi)}" target="_blank" rel="noopener">
+        <i class="ti ti-file-text" aria-hidden="true"></i>
+        <div class="file-link-info">
+          <div class="file-link-name">${esc(d.nama_notulensi || 'Notulensi')}</div>
+          <div class="file-link-type">Notulensi · Google Drive</div>
+        </div>
+        <i class="ti ti-external-link" aria-hidden="true"></i>
+      </a>`;
+    }
+    if (d.link_lampiran) {
+      fileSection += `<a class="file-link" href="${esc(d.link_lampiran)}" target="_blank" rel="noopener">
+        <i class="ti ti-paperclip" aria-hidden="true"></i>
+        <div class="file-link-info">
+          <div class="file-link-name">${esc(d.nama_lampiran || 'Lampiran')}</div>
+          <div class="file-link-type">Lampiran · Google Drive</div>
+        </div>
+        <i class="ti ti-external-link" aria-hidden="true"></i>
+      </a>`;
+    }
+    if (!fileSection) fileSection = '<p class="file-no-link">Belum ada file yang dilampirkan.</p>';
+
+    return `
+      <div class="detail-header">
+        <button class="close-btn" onclick="closeDetail()" aria-label="Tutup panel">
+          <i class="ti ti-x"></i>
+        </button>
+        <span class="detail-header-title">Detail Knowledge</span>
+      </div>
+      <div class="detail-body">
+        <div class="detail-icon" style="background:${ic.bg}">
+          <i class="ti ${ic.icon}" style="color:${ic.color};font-size:22px" aria-hidden="true"></i>
+        </div>
+        <h2 class="detail-title">${esc(d.judul)}</h2>
+        <div class="meta-pills">
+          <div class="meta-pill"><i class="ti ti-calendar" aria-hidden="true"></i>${formatDate(d.tanggal)}</div>
+          <div class="meta-pill"><i class="ti ti-tag" aria-hidden="true"></i>${esc(d.jenis)}</div>
+          <div class="meta-pill"><i class="ti ti-building" aria-hidden="true"></i>${esc(d.subdit)}</div>
+        </div>
+        <hr class="divider">
+
+        <div class="section-label">Ringkasan kegiatan</div>
+        <p class="section-text">${esc(d.ringkasan)}</p>
+
+        ${topics ? `
+        <div class="section-label" style="margin-top:16px">Topik / isu utama</div>
+        <div class="topic-chips">${topics}</div>` : ''}
+
+        ${insights ? `
+        <div class="section-label" style="margin-top:16px">Insight utama</div>
+        <ul class="insight-list">${insights}</ul>` : ''}
+
+        ${kws ? `
+        <div class="section-label" style="margin-top:16px">Kata kunci</div>
+        <div class="kw-list">${kws}</div>` : ''}
+
+        <hr class="divider">
+        <div class="section-label">File & lampiran</div>
+        <div class="file-list">${fileSection}</div>
+      </div>`;
+  }
+
+  function buildDetailSkeleton() {
+    return `<div class="detail-header">
+        <button class="close-btn" onclick="closeDetail()"><i class="ti ti-x"></i></button>
+        <span class="detail-header-title">Detail Knowledge</span>
+      </div>
+      <div class="detail-skel">
+        <div class="skel" style="width:44px;height:44px;border-radius:10px"></div>
+        <div class="skel" style="height:22px;width:80%"></div>
+        <div class="skel" style="height:16px;width:50%"></div>
+        <div style="height:1px;background:var(--border);margin:4px 0"></div>
+        <div class="skel" style="height:14px;width:40%"></div>
+        <div class="skel" style="height:60px;width:100%"></div>
+        <div class="skel" style="height:14px;width:35%"></div>
+        <div class="skel" style="height:80px;width:100%"></div>
+      </div>`;
+  }
+
+  function closeDetail() {
+    document.getElementById('overlay').classList.remove('open');
+    document.getElementById('detailPanel').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  // ESC key to close
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDetail(); });
+
+  // ─────────────────────────────────────────────────────────────
+  // SKELETON
+  // ─────────────────────────────────────────────────────────────
+  function showSkeleton(n) {
+    const sg = document.getElementById('skeletonGrid');
+    document.getElementById('cardGrid').style.display = 'none';
+    document.getElementById('emptyState').style.display = 'none';
+    sg.innerHTML = Array(n).fill(`
+      <div class="skeleton-card">
+        <div style="display:flex;gap:10px;align-items:flex-start">
+          <div class="skel" style="width:36px;height:36px;border-radius:6px;flex-shrink:0"></div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:6px">
+            <div class="skel" style="height:15px;width:90%"></div>
+            <div class="skel" style="height:13px;width:60%"></div>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:5px;flex:1">
+          <div class="skel" style="height:12px;width:100%"></div>
+          <div class="skel" style="height:12px;width:85%"></div>
+          <div class="skel" style="height:12px;width:70%"></div>
+        </div>
+        <div style="display:flex;gap:6px;margin-top:auto;padding-top:8px;border-top:1px solid var(--border)">
+          <div class="skel" style="height:20px;width:100px;border-radius:999px"></div>
+          <div class="skel" style="height:20px;width:60px;border-radius:999px"></div>
+        </div>
+      </div>`).join('');
+    sg.style.display = 'grid';
+  }
+
+  function hideSkeleton() {
+    document.getElementById('skeletonGrid').style.display = 'none';
+    document.getElementById('cardGrid').style.display = 'grid';
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // HELPERS
+  // ─────────────────────────────────────────────────────────────
+  function esc(str) {
+    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function formatDate(str) {
+    if (!str) return '—';
+    const d = new Date(str);
+    if (isNaN(d)) return str;
+    return d.toLocaleDateString('id-ID', { day:'numeric', month:'short', year:'numeric' });
+  }
+
+  function showError(msg) {
+    const b = document.getElementById('errorBanner');
+    document.getElementById('errorMsg').innerHTML =
+      `<strong>Gagal memuat data.</strong> ${esc(msg)}<br>
+       <small>Pastikan <code>API_URL</code> sudah benar dan Apps Script sudah di-deploy. 
+       <a onclick="showSetupGuide()">Lihat panduan setup.</a></small>`;
+    b.style.display = 'flex';
+  }
+
+  function hideError() { document.getElementById('errorBanner').style.display = 'none'; }
+
+  function showSetupGuide() {
+    alert(
+      'PANDUAN SETUP INTEGRASI GOOGLE SHEETS\n\n' +
+      '1. Buka Google Sheet Anda\n' +
+      '2. Klik Extensions > Apps Script\n' +
+      '3. Paste isi file appsscript.gs\n' +
+      '4. Sesuaikan nilai COL.* sesuai urutan kolom\n' +
+      '5. Klik Deploy > New Deployment > Web App\n' +
+      '   - Execute as: Me\n' +
+      '   - Who has access: Anyone\n' +
+      '6. Copy Deployment URL\n' +
+      '7. Paste URL ke CONFIG.API_URL di index.html\n' +
+      '8. Set CONFIG.DEMO_MODE = false\n' +
+      '9. Buka ulang halaman web'
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // INIT
+  // ─────────────────────────────────────────────────────────────
+  document.getElementById('appTitle').textContent = CONFIG.APP_TITLE;
+  document.getElementById('orgName').textContent  = CONFIG.ORG_NAME;
+  loadData();
+  </script>
+</body>
+</html>
