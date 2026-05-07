@@ -434,10 +434,14 @@
       background: rgba(0,0,0,0.4);
       z-index: 200;
       opacity: 0;
+      pointer-events: none; /* FIX: jangan blokir klik saat tersembunyi */
       transition: opacity 0.2s;
       backdrop-filter: blur(2px);
     }
-    .overlay.open { opacity: 1; }
+    .overlay.open {
+      opacity: 1;
+      pointer-events: auto; /* aktifkan klik saat terbuka */
+    }
 
     .detail-panel {
       position: fixed;
@@ -750,28 +754,65 @@
   // DATA FETCHING
   // ─────────────────────────────────────────────────────────────
   async function fetchData() {
-    if (CONFIG.DEMO_MODE) {
-      document.getElementById('demoBanner').style.display = 'flex';
+    // Cek apakah DEMO_MODE aktif atau API_URL belum diisi
+    const apiNotConfigured = !CONFIG.API_URL ||
+      CONFIG.API_URL.includes('YOUR_DEPLOYMENT_ID');
+
+    if (CONFIG.DEMO_MODE || apiNotConfigured) {
+      const banner = document.getElementById('demoBanner');
+      if (banner) banner.style.display = 'flex';
       return DEMO_DATA;
     }
 
-    const url = CONFIG.API_URL + '?action=list&t=' + Date.now();
-    const res = await fetch(url);
-    if (!res.ok) throw new Error('HTTP ' + res.status + ' — Gagal menghubungi API.');
-    const json = await res.json();
-    if (json.error) throw new Error(json.error);
-    return json;
+    // Fetch dari Google Apps Script dengan timeout 15 detik
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+
+    try {
+      const url = CONFIG.API_URL + '?action=list&t=' + Date.now();
+      const res = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeout);
+
+      if (!res.ok) throw new Error('HTTP ' + res.status + ' — Gagal menghubungi API.');
+
+      // Apps Script kadang return HTML error page, bukan JSON
+      const text = await res.text();
+      let json;
+      try {
+        json = JSON.parse(text);
+      } catch {
+        throw new Error('Response bukan JSON. Pastikan Apps Script sudah di-deploy dengan benar.');
+      }
+
+      if (json.error) throw new Error(json.error);
+      if (!Array.isArray(json)) throw new Error('Format data tidak valid dari API.');
+      return json;
+
+    } catch (err) {
+      clearTimeout(timeout);
+      if (err.name === 'AbortError') throw new Error('Timeout — API tidak merespons dalam 15 detik.');
+      throw err;
+    }
   }
 
   async function fetchDetail(id) {
-    if (CONFIG.DEMO_MODE) {
+    const apiNotConfigured = !CONFIG.API_URL ||
+      CONFIG.API_URL.includes('YOUR_DEPLOYMENT_ID');
+
+    if (CONFIG.DEMO_MODE || apiNotConfigured) {
       return DEMO_DATA.find(d => d.id === id) || null;
     }
+
     const url = CONFIG.API_URL + '?action=detail&id=' + id;
     const res = await fetch(url);
-    const json = await res.json();
-    if (json.error) throw new Error(json.error);
-    return json;
+    const text = await res.text();
+    try {
+      const json = JSON.parse(text);
+      if (json.error) throw new Error(json.error);
+      return json;
+    } catch {
+      throw new Error('Gagal memuat detail dari API.');
+    }
   }
 
   async function loadData() {
@@ -780,10 +821,13 @@
 
     try {
       allData = await fetchData();
+      if (!Array.isArray(allData)) allData = [];
       populateFilters();
       renderCards();
-      document.getElementById('totalBadge').textContent = allData.length + ' knowledge';
+      const badge = document.getElementById('totalBadge');
+      if (badge) badge.textContent = allData.length + ' knowledge';
     } catch (err) {
+      console.error('loadData error:', err);
       showError(err.message);
       allData = [];
       renderCards();
@@ -918,21 +962,39 @@
     const overlay = document.getElementById('overlay');
     const panel   = document.getElementById('detailPanel');
 
-    // Show loading skeleton
-    panel.innerHTML = buildDetailSkeleton();
+    // Tampilkan panel DULU dari data lokal (allData sudah di memory, selalu instant)
+    // Ini memastikan panel selalu terbuka & bisa ditutup walau API bermasalah
     overlay.classList.add('open');
     panel.classList.add('open');
     document.body.style.overflow = 'hidden';
 
-    try {
-      const d = await fetchDetail(id);
-      if (!d) throw new Error('Data tidak ditemukan.');
-      panel.innerHTML = buildDetailHTML(d);
-    } catch (err) {
-      panel.innerHTML = `<div style="padding:24px;font-size:13px;color:var(--text-2)">
-        <i class="ti ti-alert-circle" style="font-size:24px;display:block;margin-bottom:8px;color:#E24B4A"></i>
-        Gagal memuat detail: ${esc(err.message)}
-      </div>`;
+    const localData = allData.find(d => d.id === id);
+    if (localData) {
+      panel.innerHTML = buildDetailHTML({
+        ...localData,
+        insight: [],
+        link_notulensi: '',
+        link_lampiran: '',
+        nama_notulensi: 'Notulensi Kegiatan',
+        nama_lampiran: 'Lampiran Bahan Kegiatan',
+      });
+    } else {
+      panel.innerHTML = buildDetailSkeleton();
+    }
+
+    // Fetch detail lengkap dari API secara async (update panel jika berhasil)
+    const apiReady = CONFIG.API_URL && !CONFIG.API_URL.includes('YOUR_DEPLOYMENT_ID');
+    if (!CONFIG.DEMO_MODE && apiReady) {
+      try {
+        const d = await fetchDetail(id);
+        if (d && !d.error && panel.classList.contains('open')) {
+          panel.innerHTML = buildDetailHTML(d);
+        }
+      } catch (err) {
+        // Gagal fetch — data lokal sudah tampil, tambah catatan di bagian file
+        const fileList = panel.querySelector('.file-list');
+        if (fileList) fileList.innerHTML = '<p class="file-no-link">Gagal memuat link file dari server.</p>';
+      }
     }
   }
 
@@ -1063,8 +1125,9 @@
   }
 
   function hideSkeleton() {
-    document.getElementById('skeletonGrid').style.display = 'none';
-    document.getElementById('cardGrid').style.display = 'grid';
+    const sg = document.getElementById('skeletonGrid');
+    if (sg) sg.style.display = 'none';
+    // cardGrid visibility diatur oleh renderCards()
   }
 
   // ─────────────────────────────────────────────────────────────
