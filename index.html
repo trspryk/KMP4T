@@ -18,7 +18,7 @@
   <script>
     const CONFIG = {
       // Ganti dengan URL Google Apps Script Web App setelah di-deploy
-      API_URL: "https://script.google.com/macros/s/AKfycbzudBgW_4iUyyegNu-oNUYFkQ2CNFflu5e0yB5NTJBwCsEs9rldXn7p_4-FgbtgJ8bF/exec",
+      API_URL: "https://script.google.com/macros/s/AKfycbwkmrDAowWhNry8XqjRjzELuZWlsOZwwWtE4PfhBM4gLukSg2DyLdxy1DKOSc8V1FcF/exec",
 
       // ID Google Sheet (baru)
       SPREADSHEET_ID: "1VRLaK2ncNWwzoZBvCklmR0IPxyo921GGmRxFcFCSnR4",
@@ -849,21 +849,28 @@
   // ─────────────────────────────────────────────────────────────
   // FILTER POPULATION
   // ─────────────────────────────────────────────────────────────
+  // Daftar subdit tetap (sesuai opsi di Google Form)
+  const SUBDIT_LIST = [
+    "Sub Direktorat Produktivitas",
+    "Sub Direktorat Ekonomi Hijau",
+    "Sub Direktorat Ekonomi Biru",
+    "Sub Direktorat Ekonomi Oranye",
+  ];
+
   function populateFilters() {
     const tahunSet = [...new Set(allData.map(d => d.tahun).filter(Boolean))].sort().reverse();
-    const subditSet = [...new Set(allData.map(d => d.subdit).filter(Boolean))].sort();
 
     const selT = document.getElementById('filterTahun');
     const selS = document.getElementById('filterSubdit');
 
-    // Reset & repopulate
     selT.innerHTML = '<option value="">Semua</option>';
     selS.innerHTML = '<option value="">Semua</option>';
 
     tahunSet.forEach(t => {
       const o = document.createElement('option'); o.value = t; o.textContent = t; selT.appendChild(o);
     });
-    subditSet.forEach(s => {
+    // Subdit: pakai daftar tetap, bukan dari data (agar tidak muncul kombinasi)
+    SUBDIT_LIST.forEach(s => {
       const o = document.createElement('option'); o.value = s; o.textContent = s; selS.appendChild(o);
     });
   }
@@ -884,7 +891,8 @@
           if (!haystack.includes(q)) return false;
         }
         if (tahun  && d.tahun  !== tahun)  return false;
-        if (subdit && d.subdit !== subdit) return false;
+        // subdit bisa berisi beberapa nilai (dari checkbox), cek apakah mengandung subdit yang dipilih
+        if (subdit && !d.subdit.includes(subdit)) return false;
         if (jenis  && d.jenis  !== jenis)  return false;
         return true;
       })
@@ -942,7 +950,10 @@
         </div>
         <div class="card-summary">${esc(d.ringkasan)}</div>
         <div class="card-footer">
-          <span class="chip-subdit" style="background:${sc.bg};color:${sc.color}">${esc(d.subdit)}</span>
+          ${d.subdit.split(',').map(s => s.trim()).filter(Boolean).map(s => {
+            const c = getSubditColor(s.trim());
+            return `<span class="chip-subdit" style="background:${c.bg};color:${c.color}">${esc(s.trim())}</span>`;
+          }).join('')}
           <span class="chip">${esc(d.jenis)}</span>
           <span class="card-date">${formatDate(d.tanggal)}</span>
         </div>
